@@ -1,5 +1,6 @@
 """Filter signals with IIR filters."""
 
+import numpy as np
 from scipy.signal import butter, sosfiltfilt
 
 from neurodsp.utils import remove_nans, restore_nans
@@ -10,8 +11,9 @@ from neurodsp.plts.filt import plot_frequency_response
 ###################################################################################################
 ###################################################################################################
 
-def filter_signal_iir(sig, fs, pass_type, f_range, butterworth_order,
-                      print_transitions=False, plot_properties=False, return_filter=False):
+def filter_signal_iir(sig, fs, pass_type, f_range, butterworth_order, print_transitions=False,
+                      plot_properties=False, save_properties=None, return_filter=False,
+                      verbose=False):
     """Apply an IIR filter to a signal.
 
     Parameters
@@ -39,8 +41,12 @@ def filter_signal_iir(sig, fs, pass_type, f_range, butterworth_order,
         If True, print out the transition and pass bandwidths.
     plot_properties : bool, optional, default: False
         If True, plot the properties of the filter, including frequency response and/or kernel.
+    save_properties : str
+        Path, including file name, to save filter properites to as a json.
     return_filter : bool, optional, default: False
         If True, return the second order series coefficients of the IIR filter.
+    verbose : bool, optional, default: False
+        If True, print out detailed filter information.
 
     Returns
     -------
@@ -65,7 +71,9 @@ def filter_signal_iir(sig, fs, pass_type, f_range, butterworth_order,
     sos = design_iir_filter(fs, pass_type, f_range, butterworth_order)
 
     # Check filter properties: compute transition bandwidth & run checks
-    check_filter_properties(sos, None, fs, pass_type, f_range, verbose=print_transitions)
+    check_filter_properties(sos, None, fs, pass_type, f_range, filt_type="IIR",
+                            verbose=np.any([print_transitions, verbose]),
+                            save_properties=save_properties)
 
     # Remove any NaN on the edges of 'sig'
     sig, sig_nans = remove_nans(sig)

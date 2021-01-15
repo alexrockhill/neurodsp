@@ -1,6 +1,8 @@
 """Checker functions for filtering."""
 
 from warnings import warn
+import os
+import json
 
 import numpy as np
 
@@ -89,8 +91,8 @@ def check_filter_definition(pass_type, f_range):
     return f_lo, f_hi
 
 
-def check_filter_properties(filter_coefs, a_vals, fs, pass_type, f_range,
-                            transitions=(-20, -3), verbose=True):
+def check_filter_properties(filter_coefs, a_vals, fs, pass_type, f_range, transitions=(-20, -3),
+                            filt_type=None, verbose=True, save_properties=None):
     """Check a filters properties, including pass band and transition band.
 
     Parameters
@@ -117,8 +119,12 @@ def check_filter_properties(filter_coefs, a_vals, fs, pass_type, f_range,
         a tuple and is assumed to be (None, f_hi) for 'lowpass', and (f_lo, None) for 'highpass'.
     transitions : tuple of (float, float), optional, default: (-20, -3)
         Cutoffs, in dB, that define the transition band.
+    filt_type : str, optional, {'FIR', 'IIR'}
+        The type of filter being applied.
     verbose : bool, optional, default: True
-        Whether to print out transition and pass bands.
+        Whether to print out filter properties.
+    save_properties : str
+        Path, including file name, to save filter properites to as a json.
 
     Returns
     -------
@@ -138,8 +144,8 @@ def check_filter_properties(filter_coefs, a_vals, fs, pass_type, f_range,
     """
 
     # Import utility functions inside function to avoid circular imports
-    from neurodsp.filt.utils import (compute_frequency_response,
-                                     compute_pass_band, compute_transition_band)
+    from neurodsp.filt.utils import (compute_frequency_response, compute_pass_band,
+                                     compute_transition_band, gen_filt_report, save_filt_report)
 
     # Initialize variable to keep track if all checks pass
     passes = True
@@ -164,7 +170,8 @@ def check_filter_properties(filter_coefs, a_vals, fs, pass_type, f_range,
 
     # Compute pass & transition bandwidth
     pass_bw = compute_pass_band(fs, pass_type, f_range)
-    transition_bw = compute_transition_band(f_db, db, transitions[0], transitions[1])
+    transition_bw, f_range_trans = compute_transition_band(f_db, db, transitions[0], transitions[1],
+                                                           return_freqs=True)
 
     # Raise warning if transition bandwidth is too high
     if transition_bw > pass_bw:
@@ -172,10 +179,16 @@ def check_filter_properties(filter_coefs, a_vals, fs, pass_type, f_range,
         warn('Transition bandwidth is  {:.1f}  Hz. This is greater than the desired'\
              'pass/stop bandwidth of  {:.1f} Hz'.format(transition_bw, pass_bw))
 
-    # Print out transition bandwidth and pass bandwidth to the user
+    # Report filter properties
+    if verbose or save_properties:
+        filt_report = gen_filt_report(pass_type, filt_type, fs, f_db, db, pass_bw,
+                                      transition_bw, f_range, f_range_trans)
+
     if verbose:
-        print('Transition bandwidth is {:.1f} Hz.'.format(transition_bw))
-        print('Pass/stop bandwidth is {:.1f} Hz.'.format(pass_bw))
+        print('\n'.join('{} : {}'.format(key, value) for key, value in filt_report.items()))
+
+    if save_properties is not None:
+        save_filt_report(save_properties, filt_report)
 
     return passes
 
